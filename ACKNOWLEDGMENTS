@@ -1,0 +1,57 @@
+This file lists all third party libraries used by the software.
+
+Each entry contains a name of the library, copyright notice,
+the name of the license, a link to the complete license file.
+
+
+Pillow
+    Copyright © 1997-2011 by Secret Labs AB
+    Copyright © 1995-2011 by Fredrik Lundh
+
+    PIL Software License
+
+    http://www.pythonware.com/products/pil/license.htm
+
+
+Numpy
+    Copyright (c) 2005-2019, NumPy Developers.
+    All rights reserved.
+
+    BSD License
+
+    https://github.com/numpy/numpy/blob/master/LICENSE.txt
+
+
+TensorFlow
+    Copyright 2019 The TensorFlow Authors. All rights reserved.
+
+    Apache License 2.0
+
+    https://github.com/tensorflow/tensorflow/blob/master/LICENSE
+
+
+Keras
+    COPYRIGHT
+
+    All contributions by François Chollet:
+    Copyright (c) 2015 - 2019, François Chollet.
+    All rights reserved.
+
+    All contributions by Google:
+    Copyright (c) 2015 - 2019, Google, Inc.
+    All rights reserved.
+
+    All contributions by Microsoft:
+    Copyright (c) 2017 - 2019, Microsoft, Inc.
+    All rights reserved.
+
+    All other contributions:
+    Copyright (c) 2015 - 2019, the respective contributors.
+    All rights reserved.
+
+    Each contributor holds copyright over their respective contributions.
+    The project versioning (Git) records all such contribution source information.
+
+    MIT License
+
+    https://github.com/keras-team/keras/blob/master/LICENSE

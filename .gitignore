@@ -1,0 +1,7 @@
+venv/
+\.idea/
+*.pyc
+*.jpg
+*.png
+*.json
+pre_trained_models/
