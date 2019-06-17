@@ -245,9 +245,3 @@ class RandomCanvasGenerator:
             canvas.bitmap((x, y), character_bitmap, fill=255)
 
         return im
-
-
-canvas_gen = RandomCanvasGenerator()
-
-im = canvas_gen.generate_image()
-im.show()

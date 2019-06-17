@@ -31,3 +31,5 @@ if __name__ == '__main__':
                                   epochs=2,
                                   validation_data=validation_gen,
                                   validation_steps=validation_steps)
+
+    model.save('MNIST_classifier.h5')

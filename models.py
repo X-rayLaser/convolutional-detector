@@ -112,11 +112,10 @@ class ModelBuilder:
 def build_model(input_shape, num_classes):
     builder = ModelBuilder(input_shape)
     builder.add_conv_layer().add_batch_norm_layer()
-    builder.add_conv_layer().add_pooling_layer().add_batch_norm_layer()
     builder.add_conv_layer().add_batch_norm_layer()
-    builder.add_conv_layer(last_one=True).add_pooling_layer().add_batch_norm_layer()
-    builder.add_fully_connected_layer().add_batch_norm_layer().add_dropout_layer(drop_prob=0.4)
-    builder.add_fully_connected_layer().add_batch_norm_layer().add_dropout_layer(drop_prob=0.4)
+    builder.add_conv_layer(last_one=True).add_batch_norm_layer()
+    builder.add_fully_connected_layer().add_batch_norm_layer().add_dropout_layer(drop_prob=0.2)
+    builder.add_fully_connected_layer().add_batch_norm_layer().add_dropout_layer()
     builder.add_output_layer(num_classes=num_classes)
 
     return builder
