@@ -16,7 +16,7 @@ class ModelBuilder:
         kwargs = dict(filters=self._filters, kernel_size=kernel_size,
                       kernel_initializer='he_normal', activation='relu')
         if last_one:
-            kwargs['name'] ='last_feature_extraction_layer'
+            kwargs['name'] = 'last_feature_extraction_layer'
 
         layer = Conv2D(**kwargs)
 
@@ -111,7 +111,7 @@ class ModelBuilder:
 
 def build_model(input_shape, num_classes):
     builder = ModelBuilder(input_shape)
-    builder.add_conv_layer().add_pooling_layer().add_batch_norm_layer()
+    builder.add_conv_layer().add_batch_norm_layer()
     builder.add_conv_layer().add_pooling_layer().add_batch_norm_layer()
     builder.add_conv_layer().add_batch_norm_layer()
     builder.add_conv_layer(last_one=True).add_pooling_layer().add_batch_norm_layer()

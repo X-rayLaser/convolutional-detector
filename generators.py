@@ -12,10 +12,32 @@ class MNISTDataSet:
         self._train_data = train_data
         self._dev_data = dev_data
 
+    @staticmethod
+    def total_classes():
+        return MNISTDataSet.NUM_CLASSES + 1
+
     @property
     def input_shape(self):
         x, _ = self.training_set
         return x[0].shape
+
+    def rank3_shape(self):
+        height, width = self.input_shape
+        return height, width, 1
+
+    def batch_shape(self, batch_size):
+        height, width = self.input_shape
+        return batch_size, height, width, 1
+
+    @property
+    def train_size(self):
+        _, y = self.training_set
+        return len(y)
+
+    @property
+    def validation_size(self):
+        _, y = self.validation_set
+        return len(y)
 
     @property
     def training_set(self):
@@ -31,11 +53,11 @@ class MNISTDataSet:
 
     @staticmethod
     def to_one_hot(y):
-        return to_categorical(y, num_classes=MNISTDataSet.NUM_CLASSES + 1)
+        return to_categorical(y, num_classes=MNISTDataSet.total_classes())
 
     @staticmethod
     def to_label(class_index):
-        if class_index < 0 or class_index > MNISTDataSet.NUM_CLASSES + 1:
+        if class_index < 0 or class_index > MNISTDataSet.total_classes():
             return '?'
 
         if MNISTDataSet.is_background(class_index):
@@ -60,26 +82,46 @@ class MnistGenerator:
 
     def flow_from_validation_data(self):
         x, y = self._mnist.validation_set
-
-        x_norm = self.normalize(x)
-        y_1hot = self._mnist.to_one_hot(y)
-
-        return self._datagen.flow(x_norm, y_1hot, batch_size=self._batch_size)
+        return self._generate(x, y)
 
     def _generate(self, x, y):
         m = len(y)
 
-        for i in range(0, m, self._batch_size):
-            print(i)
-            index_from = i
-            index_to = i + self._batch_size
-            x_batch = x[index_from:index_to]
-            y_batch = y[index_from:index_to]
-            x_batch, y_batch = self._shift((x_batch, y_batch))
-            x_norm = self.normalize(x_batch)
-            y_1hot = self._mnist.to_one_hot(y_batch)
+        while True:
+            x, y = self._sorted(x, y)
 
-            yield x_norm, y_1hot
+            for i in range(0, m, self._batch_size):
+                print(i)
+                index_from = i
+                index_to = i + self._batch_size
+                x_batch = x[index_from:index_to]
+                y_batch = y[index_from:index_to]
+                x_batch, y_batch = self._shift((x_batch, y_batch))
+                x_norm = self.normalize(x_batch)
+                y_1hot = self._mnist.to_one_hot(y_batch)
+
+                y_1hot = y_1hot.reshape(
+                    (len(y_1hot), 1, 1, self._mnist.total_classes())
+                )
+
+                yield x_norm, y_1hot
+
+    def _sorted(self, x, y):
+        m = len(y)
+
+        indices = list(range(m))
+        from random import shuffle
+        shuffle(indices)
+
+        x_out = []
+        y_out = []
+        for index in indices:
+            x_out.append(x[index])
+            y_out.append(y[index])
+
+        x_out = np.array(x_out)
+        y_out = np.array(y_out)
+        return x_out, y_out
 
     def _shift(self, batch):
         x, y = batch
@@ -122,12 +164,3 @@ class MnistGenerator:
 
     def normalize(self, x):
         return x / 255
-
-
-gen = MnistGenerator(batch_size=128)
-
-
-for x_batch, y_batch in gen.flow_from_training_data():
-    print(x_batch.shape)
-    print(y_batch.shape)
-    print(y_batch[0])
