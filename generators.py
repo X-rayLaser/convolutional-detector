@@ -1,3 +1,4 @@
+from random import shuffle
 import numpy as np
 from keras.datasets import mnist
 from keras.preprocessing.image import ImageDataGenerator
@@ -70,19 +71,36 @@ class MNISTDataSet:
         return class_index == MNISTDataSet.NUM_CLASSES
 
 
-class MnistGenerator:
+# todo: create dataset wrapper class that is agnostic about whether it works with training data or validation data
+# todo: rewrite existing generator code in terms of that new class
 
-    def __init__(self, batch_size):
+
+class MNISTGenerator:
+
+    SHIFT_TOLERANCE = 3
+
+    def __init__(self, mnist_dataset, batch_size, p_background=None):
+        self._mnist = mnist_dataset
         self._batch_size = batch_size
-        self._mnist = MNISTDataSet()
+
+        if not p_background:
+            self._p_background = 1.0 / (self._mnist.NUM_CLASSES + 1)
+        else:
+            self._p_background = p_background
 
     def flow_from_training_data(self):
         x, y = self._mnist.training_set
-        return self._generate(x, y)
+        return self._generate(x, y), self._steps_per_epoch(len(y))
 
     def flow_from_validation_data(self):
         x, y = self._mnist.validation_set
-        return self._generate(x, y)
+        return self._generate(x, y), self._steps_per_epoch(len(y))
+
+    def _steps_per_epoch(self, m):
+        if m < self._batch_size:
+            return 1
+
+        return int(m / self._batch_size)
 
     def _generate(self, x, y):
         m = len(y)
@@ -91,13 +109,12 @@ class MnistGenerator:
             x, y = self._sorted(x, y)
 
             for i in range(0, m, self._batch_size):
-                print(i)
                 index_from = i
                 index_to = i + self._batch_size
                 x_batch = x[index_from:index_to]
                 y_batch = y[index_from:index_to]
                 x_batch, y_batch = self._shift((x_batch, y_batch))
-                x_norm = self.normalize(x_batch)
+                x_norm = self._normalize(x_batch)
                 y_1hot = self._mnist.to_one_hot(y_batch)
 
                 y_1hot = y_1hot.reshape(
@@ -110,7 +127,6 @@ class MnistGenerator:
         m = len(y)
 
         indices = list(range(m))
-        from random import shuffle
         shuffle(indices)
 
         x_out = []
@@ -126,24 +142,25 @@ class MnistGenerator:
     def _shift(self, batch):
         x, y = batch
 
-        p_background = 1.0 / (self._mnist.NUM_CLASSES + 1)
-
-        x_out = np.zeros(self.rank4_shape(x))
+        x_out = np.zeros(self._mnist.batch_shape(len(x)))
         y_out = np.zeros(len(y))
 
-        x = self.to_rank4(x)
+        x = self._to_rank4(x)
         for i in range(len(y)):
 
-            if np.random.random() < p_background:
-                x_shifted = self._transform_example(x[i:i+1], max_shift=28)
+            if np.random.random() < self._p_background:
+                image_width = self._mnist.input_shape[0]
+                x_shifted = self._transform_example(x[i:i+1], max_shift=image_width)
                 y_out[i] = self._mnist.background_class()
             else:
-                x_shifted = self._transform_example(x[i:i+1], max_shift=3)
+                x_shifted = self._transform_example(
+                    x[i:i+1], max_shift=self.SHIFT_TOLERANCE
+                )
                 y_out[i] = y[i]
 
             x_out[i] = x_shifted
 
-        x_out = self.to_rank4(x_out)
+        x_out = self._to_rank4(x_out)
         y_out = np.array(y_out)
         return x_out, y_out
 
@@ -154,13 +171,8 @@ class MnistGenerator:
             x_shifted = x_batch[0]
             return x_shifted
 
-    def rank4_shape(self, x_batch):
-        batch_size = len(x_batch)
-        height, width = self._mnist.input_shape
-        return batch_size, height, width, 1
+    def _to_rank4(self, x_batch):
+        return x_batch.reshape(self._mnist.batch_shape(len(x_batch)))
 
-    def to_rank4(self, x_batch):
-        return x_batch.reshape(self.rank4_shape(x_batch))
-
-    def normalize(self, x):
-        return x / 255
+    def _normalize(self, x):
+        return x / 255.0

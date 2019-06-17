@@ -4,18 +4,17 @@ if __name__ == '__main__':
     architecture_conf_path = ''
     model_save_path = ''
 
-    from generators import MnistGenerator
+    from generators import MNISTDataSet, MNISTGenerator
     from models import build_model
 
     batch_size = 128
-    gen = MnistGenerator(batch_size=batch_size)
 
-    shape = gen._mnist.rank3_shape()
-    print(shape)
-    num_classes = gen._mnist.total_classes()
+    mnist_dataset = MNISTDataSet()
+    gen = MNISTGenerator(mnist_dataset=mnist_dataset, batch_size=batch_size)
 
-    m = gen._mnist.train_size
-    m_val = gen._mnist.validation_size
+    shape = mnist_dataset.rank3_shape()
+
+    num_classes = mnist_dataset.total_classes()
 
     builder = build_model(input_shape=shape, num_classes=num_classes)
 
@@ -24,8 +23,11 @@ if __name__ == '__main__':
     model.compile(optimizer='adam', loss='categorical_crossentropy',
                   metrics=['accuracy'])
 
-    history = model.fit_generator(generator=gen.flow_from_training_data(),
-                                  steps_per_epoch=int(m / batch_size),
+    train_gen, training_steps = gen.flow_from_training_data()
+    validation_gen, validation_steps = gen.flow_from_validation_data()
+
+    history = model.fit_generator(generator=train_gen,
+                                  steps_per_epoch=training_steps,
                                   epochs=2,
-                                  validation_data=gen.flow_from_validation_data(),
-                                  validation_steps=int(m_val / batch_size))
+                                  validation_data=validation_gen,
+                                  validation_steps=validation_steps)
