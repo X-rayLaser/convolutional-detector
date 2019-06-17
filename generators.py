@@ -176,3 +176,78 @@ class MNISTGenerator:
 
     def _normalize(self, x):
         return x / 255.0
+
+
+from PIL.ImageDraw import ImageDraw
+from PIL import Image, ImageFont
+
+
+class DigitFactory:
+    def __init__(self):
+        from keras.datasets import mnist
+        (x_train, y_train), (x_test, y_test) = mnist.load_data()
+        self._groups = self._group_examples(x_test, y_test)
+
+    def array_to_image(self, a):
+        h, w = a.shape
+        return Image.frombytes('L', (w, h), a.tobytes())
+
+    def _group_examples(self, x, y):
+        groups = {}
+        for i in range(len(y)):
+            label = y[i]
+            if label not in groups:
+                groups[label] = []
+
+            groups[label].append((i, x[i]))
+
+        return groups
+
+    def category_text_to_class(self, category_text):
+        return int(category_text)
+
+    def get_digit_image(self, category_name):
+        class_name = self.category_text_to_class(category_name)
+        tuples = self._groups[class_name]
+
+        index = np.random.randint(0, len(tuples) - 1)
+        index, x = tuples[index]
+
+        return self.array_to_image(x)
+
+
+class RandomCanvasGenerator:
+    def __init__(self, width=200, height=200, character_size=28):
+        self._factory = DigitFactory()
+        self._width = width
+        self._height = height
+        self._char_size = character_size
+
+    def generate_image(self, num_digits=30):
+        a = np.zeros((self._height, self._width), dtype=np.uint8)
+        im = Image.frombytes('L', (self._width, self._height), a.tobytes())
+        canvas = ImageDraw(im)
+
+        for i in range(num_digits):
+            import random
+
+            x = random.randint(0, self._width)
+            y = random.randint(0, self._height)
+
+            class_index = random.randint(0, 9)
+            ch = str(class_index)
+
+            character_bitmap = self._factory.get_digit_image(ch)
+            character_bitmap = character_bitmap.resize(
+                (self._char_size, self._char_size)
+            )
+
+            canvas.bitmap((x, y), character_bitmap, fill=255)
+
+        return im
+
+
+canvas_gen = RandomCanvasGenerator()
+
+im = canvas_gen.generate_image()
+im.show()
