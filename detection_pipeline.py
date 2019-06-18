@@ -36,11 +36,10 @@ class BoundingBox:
         return intersection / union
 
 
-def IoU(box1, box2):
-    return box1.IoU(box2)
+def non_max_suppression(label_detections, iou_threshold=0.1):
+    boxes = [result.bounding_box for result in label_detections]
+    probs = [result.score for result in label_detections]
 
-
-def non_max_suppression(boxes, probs, iou_threshold=0.1):
     pairs = list(zip(boxes, probs))
     pairs.sort(key=lambda t: t[1])
 
@@ -53,96 +52,94 @@ def non_max_suppression(boxes, probs, iou_threshold=0.1):
 
         def small_iou(t):
             b, p = t
-            return IoU(bounding_box, b) < iou_threshold
+            return bounding_box.IoU(b) < iou_threshold
 
         rems = list(filter(small_iou, rems))
 
     return survived_indices
 
 
-def detect_boxes(prediction_grid, object_size, p_threshold=0.9):
-    object_height, object_width = object_size
+def thresholding(y_hat, p_threshold=0.2):
+    h, w, d = y_hat.shape
 
-    mask = prediction_grid > p_threshold
+    for i in range(h):
+        for j in range(w):
+            p_object = 1 - y_hat[i, j, -1]
+            if p_object < p_threshold:
+                y_hat[:d - 1, :d - 1] = 0
 
-    prediction_grid = prediction_grid * mask
-
-    boxes = []
-    scores = []
-
-    rows, cols = prediction_grid.shape
-
-    for row in range(rows):
-        for col in range(cols):
-            if prediction_grid[row, col] > p_threshold:
-                boxes.append(BoundingBox((col, row),
-                                         object_width, object_height))
-                scores.append(prediction_grid[row, col])
-
-    return boxes, scores
+    return y_hat[:, :, :d - 1]
 
 
-def group_indices(labels):
-    groups = {}
-    for i in range(len(labels)):
-        label = labels[i]
-        if label not in groups:
-            groups[label] = []
-
-        groups[label].append(i)
-
-    return groups
+class DetectionResult:
+    def __init__(self, bounding_box, confidence_score, predicted_class):
+        self.bounding_box = bounding_box
+        self.score = confidence_score
+        self.predicted_class = predicted_class
 
 
-def suppress_class_wise(boxes, scores, labels):
-    groups = group_indices(labels)
-    cleaned_groups = dict(groups)
-    for label, indices in groups.items():
-        label_boxes = [boxes[i] for i in indices]
-        label_scores = [scores[i] for i in indices]
-        remaining_indices = non_max_suppression(label_boxes, label_scores,
-                                                iou_threshold=0.02)
-        cleaned_groups[label] = [indices[i] for i in remaining_indices]
+class HeatMap:
+    def __init__(self, feature_map, map_index, object_size):
+        self._a = feature_map
+        self._object_size = object_size
+        self._map_index = map_index
 
-    rem_boxes = []
-    rem_labels = []
-    rem_scores = []
-    for label, indices in cleaned_groups.items():
-        rem_boxes.extend([boxes[i] for i in indices])
-        rem_labels.extend([label] * len(indices))
-        rem_scores.extend([scores[i] for i in indices])
+    def detect_boxes(self, p_threshold=0.9):
+        object_height, object_width = self._object_size
 
-    return rem_boxes, rem_scores, rem_labels
+        prediction_grid = self._a
+
+        mask = prediction_grid > p_threshold
+
+        prediction_grid = prediction_grid * mask
+
+        rows, cols = prediction_grid.shape
+
+        results = []
+        for row in range(rows):
+            for col in range(cols):
+                score = prediction_grid[row, col]
+
+                if score > p_threshold:
+                    bounding_box = BoundingBox((col, row), object_width,
+                                               object_height)
+
+                    res = DetectionResult(bounding_box, score,
+                                          str(self._map_index))
+                    results.append(res)
+
+        return results
+
+    def get_bounding_boxes(self):
+        return self.detect_boxes()
+
+    def non_max_suppression(self):
+        detection_results = self.get_bounding_boxes()
+
+        indices = non_max_suppression(detection_results, iou_threshold=0.2)
+        return [detection_results[i] for i in indices]
 
 
 def detect_locations(image, model, object_size):
     image_height, image_width, _ = image.shape
 
-    y_pred = model.predict(image.reshape(1, image_height, image_width, 1) / 255.0)[0]
+    y_pred = model.predict(image.reshape(1, image_height,
+                                         image_width, 1) / 255.0)[0]
 
-    h, w, d = y_pred.shape
-    for i in range(h):
-        for j in range(w):
-            p_object = 1 - y_pred[i, j, 10]
-            if p_object < 0.2:
-                y_pred[:10, :10] = 0
+    y_pred = thresholding(y_pred)
 
-    y_pred = y_pred[:, :, :10]
-    all_boxes = []
-    all_scores = []
-    all_labels = []
+    results = []
+
     for k in range(10):
-        boxes, scores = detect_boxes(y_pred[:, :, k], object_size)
-        all_boxes.extend(boxes)
-        all_scores.extend(scores)
-        all_labels.extend([str(k)] * len(boxes))
+        a = y_pred[:, :, k]
+        heat_map = HeatMap(feature_map=a, map_index=k, object_size=object_size)
 
-    boxes, scores, labels = suppress_class_wise(all_boxes, all_scores, all_labels)
+        results.extend(heat_map.non_max_suppression())
 
-    indices = non_max_suppression(boxes, scores, iou_threshold=0.2)
+    indices = non_max_suppression(results, iou_threshold=0.2)
 
-    cleaned_boxes = [boxes[i] for i in indices]
-    cleaned_labels = [labels[i] for i in indices]
+    cleaned_boxes = [results[i].bounding_box for i in indices]
+    cleaned_labels = [results[i].predicted_class for i in indices]
     return cleaned_boxes, cleaned_labels
 
 
