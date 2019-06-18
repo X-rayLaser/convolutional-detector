@@ -16,10 +16,8 @@ def visualize_detection(a, boxes, labels):
     fnt = ImageFont.truetype('Pillow/Tests/fonts/FreeMono.ttf', 15)
 
     for i in range(len(boxes)):
-        xc, yc, w, h = boxes[i]
+        x, y, w, h = boxes[i].geometry
         label = labels[i]
-        x = int(round(xc - w / 2))
-        y = int(round(yc - h / 2))
 
         xy = [(x, y), (x + w, y + h)]
         canvas.rectangle(xy, width=2, outline=128)

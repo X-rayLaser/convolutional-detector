@@ -5,26 +5,39 @@ from generators import RandomCanvasGenerator
 from draw_bounding_box import visualize_detection
 
 
+class BoundingBox:
+    def __init__(self, xy, width, height):
+        x0, y0 = xy
+
+        self._x = x0
+        self._y = y0
+        self._width = width
+        self._height = height
+
+    @property
+    def geometry(self):
+        return self._x, self._y, self._width, self._height
+
+    def to_shapely_box(self):
+        x, y, w, h = self.geometry
+        return box(x, y, x + w, y + h)
+
+    def IoU(self, other_box):
+        b1 = self.to_shapely_box()
+        b2 = other_box.to_shapely_box()
+
+        intersection = b1.intersection(b2).area
+
+        union = b1.union(b2).area
+
+        if union == 0:
+            return 1
+
+        return intersection / union
+
+
 def IoU(box1, box2):
-    xc1, yc1, w1, h1 = box1
-    xc2, yc2, w2, h2 = box2
-
-    x1 = xc1 - w1 // 2
-    y1 = yc1 - h1 // 2
-
-    x2 = xc2 - w2 // 2
-    y2 = yc2 - h2 // 2
-    b1 = box(x1, y1, x1 + w1, y1 + h1)
-    b2 = box(x2, y2, x2 + w2, y2 + h2)
-
-    intersection = b1.intersection(b2).area
-
-    union = b1.union(b2).area
-
-    if union == 0:
-        return 1
-
-    return intersection / union
+    return box1.IoU(box2)
 
 
 def non_max_suppression(boxes, probs, iou_threshold=0.1):
@@ -34,13 +47,13 @@ def non_max_suppression(boxes, probs, iou_threshold=0.1):
     rems = list(pairs)
     survived_indices = []
     while rems:
-        box, prob = rems.pop()
+        bounding_box, prob = rems.pop()
         index = probs.index(prob)
         survived_indices.append(index)
 
         def small_iou(t):
             b, p = t
-            return IoU(box, b) < iou_threshold
+            return IoU(bounding_box, b) < iou_threshold
 
         rems = list(filter(small_iou, rems))
 
@@ -62,10 +75,8 @@ def detect_boxes(prediction_grid, object_size, p_threshold=0.9):
     for row in range(rows):
         for col in range(cols):
             if prediction_grid[row, col] > p_threshold:
-                x = col + object_width // 2
-                y = row + object_height // 2
-
-                boxes.append((x, y, object_width, object_height))
+                boxes.append(BoundingBox((col, row),
+                                         object_width, object_height))
                 scores.append(prediction_grid[row, col])
 
     return boxes, scores
@@ -89,7 +100,8 @@ def suppress_class_wise(boxes, scores, labels):
     for label, indices in groups.items():
         label_boxes = [boxes[i] for i in indices]
         label_scores = [scores[i] for i in indices]
-        remaining_indices = non_max_suppression(label_boxes, label_scores, iou_threshold=0.02)
+        remaining_indices = non_max_suppression(label_boxes, label_scores,
+                                                iou_threshold=0.02)
         cleaned_groups[label] = [indices[i] for i in remaining_indices]
 
     rem_boxes = []
@@ -105,7 +117,6 @@ def suppress_class_wise(boxes, scores, labels):
 
 def detect_locations(image, model, object_size):
     image_height, image_width, _ = image.shape
-    object_height, object_width = object_size
 
     y_pred = model.predict(image.reshape(1, image_height, image_width, 1) / 255.0)[0]
 
