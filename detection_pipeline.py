@@ -141,25 +141,3 @@ def detect_locations(image, model, object_size):
     cleaned_boxes = [results[i].bounding_box for i in indices]
     cleaned_labels = [results[i].predicted_class for i in indices]
     return cleaned_boxes, cleaned_labels
-
-
-if __name__ == '__main__':
-    img_width = 200
-    img_height = 200
-
-    object_height = 28
-    object_width = object_height
-
-    builder = build_model(input_shape=(object_height, object_width, 1), num_classes=11)
-    builder.load_weights('MNIST_classifier.h5')
-
-    model = builder.get_complete_model(input_shape=(200, 200, 1))
-
-    gen = RandomCanvasGenerator(width=img_width, height=img_height)
-    image = gen.generate_image(num_digits=10)
-
-    bounding_boxes, labels = detect_locations(
-        img_to_array(image), model, object_size=(object_height, object_width)
-    )
-
-    visualize_detection(img_to_array(image), bounding_boxes, labels)
