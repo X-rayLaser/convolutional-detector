@@ -3,6 +3,8 @@ import numpy as np
 from keras.datasets import mnist
 from keras.preprocessing.image import ImageDataGenerator
 from keras.utils import to_categorical
+from PIL.ImageDraw import ImageDraw
+from PIL import Image
 
 
 class MNISTDataSet:
@@ -176,10 +178,6 @@ class MNISTGenerator:
 
     def _normalize(self, x):
         return x / 255.0
-
-
-from PIL.ImageDraw import ImageDraw
-from PIL import Image, ImageFont
 
 
 class DigitFactory:
