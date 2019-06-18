@@ -1,3 +1,4 @@
+import json
 from keras.layers import Input, InputLayer, Dropout, BatchNormalization, Conv2D, MaxPool2D
 from keras.models import Sequential
 from keras import Model
@@ -117,5 +118,37 @@ def build_model(input_shape, num_classes):
     builder.add_fully_connected_layer().add_batch_norm_layer().add_dropout_layer(drop_prob=0.2)
     builder.add_fully_connected_layer().add_batch_norm_layer().add_dropout_layer()
     builder.add_output_layer(num_classes=num_classes)
+
+    return builder
+
+
+def model_from_config(path):
+    with open(path, 'r') as f:
+        s = f.read()
+
+    d = json.loads(s)
+
+    input_shape = d['input_shape']
+    initial_num_filters = d['initial_num_filters']
+    kernel_size = d['kernel_size']
+    convolutional_layers = d['convolutional_layers']
+    drop_prob = d['drop_prob']
+    num_classes = d['num_classes']
+
+    num_background_classes = 1
+
+    total_classes = num_classes + num_background_classes
+
+    builder = ModelBuilder(input_shape, initial_num_filters=initial_num_filters)
+
+    for _ in range(convolutional_layers - 1):
+        builder.add_conv_layer(kernel_size=kernel_size).add_batch_norm_layer()
+
+    builder.add_conv_layer(last_one=True, kernel_size=kernel_size)
+    builder.add_batch_norm_layer()
+
+    builder.add_fully_connected_layer().add_dropout_layer(drop_prob=drop_prob)
+    builder.add_fully_connected_layer()
+    builder.add_output_layer(num_classes=total_classes)
 
     return builder

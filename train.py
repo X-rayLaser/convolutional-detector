@@ -1,6 +1,6 @@
 import argparse
 from generators import MNISTDataSet, MNISTGenerator
-from models import build_model
+from models import build_model, model_from_config
 
 
 def get_cmd_arguments():
@@ -12,6 +12,7 @@ def get_cmd_arguments():
     parser.add_argument('--image_height', type=int, default=28)
     parser.add_argument('--batch_size', type=int, default=128)
     parser.add_argument('--epochs', type=int, default=2)
+    parser.add_argument('--model_config', type=str, default='model_config.json')
 
     return parser.parse_args()
 
@@ -28,7 +29,10 @@ if __name__ == '__main__':
 
     num_classes = mnist_dataset.total_classes()
 
-    builder = build_model(input_shape=shape, num_classes=num_classes)
+    if args.model_config:
+        builder = model_from_config(args.model_config)
+    else:
+        builder = build_model(input_shape=shape, num_classes=num_classes)
 
     model = builder.get_complete_model(input_shape=shape)
 
