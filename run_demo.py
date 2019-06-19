@@ -1,4 +1,6 @@
 import argparse
+import os
+import json
 from keras.preprocessing.image import img_to_array
 from detection_pipeline import detect_locations
 from draw_bounding_box import visualize_detection
@@ -17,14 +19,15 @@ def get_cmd_arguments():
     return parser.parse_args()
 
 
-def start_interactive_loop(canvas_generator, object_size):
+def start_interactive_loop(canvas_generator, object_size, index_to_class):
     while True:
         try:
             num_digits = int(input('Enter a number of digits:\n'))
             image = canvas_generator.generate_image(num_digits=num_digits)
 
             bounding_boxes, labels = detect_locations(
-                img_to_array(image), model, object_size=object_size
+                img_to_array(image), model, object_size=object_size,
+                index_to_class=index_to_class
             )
 
             visualize_detection(img_to_array(image), bounding_boxes, labels)
@@ -32,8 +35,23 @@ def start_interactive_loop(canvas_generator, object_size):
             print('Number of digits must be an integer')
 
 
+def model_meta_data(classifier_path):
+    base_path, _ = os.path.splitext(classifier_path)
+    meta_path = base_path + '.meta.json'
+
+    with open(meta_path, 'r') as f:
+        s = f.read()
+
+    return json.loads(s)
+
+
 if __name__ == '__main__':
     args = get_cmd_arguments()
+
+    meta_data = model_meta_data(args.classifier)
+
+    index_to_class = meta_data['index_to_class']
+    index_to_class = dict((int(k), v) for k, v in index_to_class.items())
 
     total_num_classes = args.num_classes + 1
 
@@ -47,4 +65,4 @@ if __name__ == '__main__':
     gen = RandomCanvasGenerator(width=args.canvas_width,
                                 height=args.canvas_height)
 
-    start_interactive_loop(gen, (args.input_height, args.input_width))
+    start_interactive_loop(gen, (args.input_height, args.input_width), index_to_class)

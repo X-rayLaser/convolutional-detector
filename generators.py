@@ -1,4 +1,5 @@
 from random import shuffle
+import os
 import numpy as np
 from keras.datasets import mnist
 from keras.preprocessing.image import ImageDataGenerator
@@ -7,74 +8,121 @@ from PIL.ImageDraw import ImageDraw
 from PIL import Image
 
 
-class MNISTDataSet:
-    NUM_CLASSES = 10
+class BaseDataSet:
+    def __init__(self, height, width, num_classes, gray_scale=True):
+        self._num_classes = num_classes
+        self._height = height
+        self._width = width
+        self._gray_scale = gray_scale
 
-    def __init__(self):
-        train_data, dev_data = mnist.load_data()
-        self._train_data = train_data
-        self._dev_data = dev_data
-
-    @staticmethod
-    def total_classes():
-        return MNISTDataSet.NUM_CLASSES + 1
+    def total_classes(self):
+        return self._num_classes + 1
 
     @property
     def input_shape(self):
-        x, _ = self.training_set
-        return x[0].shape
+        return self._height, self._width
 
     def rank3_shape(self):
         height, width = self.input_shape
-        return height, width, 1
+
+        if self._gray_scale:
+            channels = 1
+        else:
+            channels = 3
+        return height, width, channels
 
     def batch_shape(self, batch_size):
-        height, width = self.input_shape
-        return batch_size, height, width, 1
+        return (batch_size, ) + self.rank3_shape()
 
     @property
-    def train_size(self):
-        _, y = self.training_set
-        return len(y)
+    def size(self):
+        raise NotImplementedError
 
-    @property
-    def validation_size(self):
-        _, y = self.validation_set
-        return len(y)
+    def background_class(self):
+        return self._num_classes
 
-    @property
-    def training_set(self):
-        return self._train_data
+    def to_one_hot(self, y):
+        return to_categorical(y, num_classes=self.total_classes())
 
-    @property
-    def validation_set(self):
-        return self._dev_data
-
-    @staticmethod
-    def background_class():
-        return MNISTDataSet.NUM_CLASSES
-
-    @staticmethod
-    def to_one_hot(y):
-        return to_categorical(y, num_classes=MNISTDataSet.total_classes())
-
-    @staticmethod
-    def to_label(class_index):
-        if class_index < 0 or class_index > MNISTDataSet.total_classes():
+    def to_label(self, class_index):
+        if class_index < 0 or class_index > self.total_classes():
             return '?'
 
-        if MNISTDataSet.is_background(class_index):
+        if self.is_background(class_index):
             return 'background'
 
         return str(class_index)
 
-    @staticmethod
-    def is_background(class_index):
-        return class_index == MNISTDataSet.NUM_CLASSES
+    def mapping_table(self):
+        raise NotImplementedError
+
+    def to_index(self, label):
+        raise NotImplementedError
+
+    def is_background(self, class_index):
+        return class_index == self._num_classes
+
+    def mini_batches(self, batch_size):
+        raise NotImplementedError
 
 
-# todo: create dataset wrapper class that is agnostic about whether it works with training data or validation data
-# todo: rewrite existing generator code in terms of that new class
+class MNISTDataSet(BaseDataSet):
+    def __init__(self, x, y, gray_scale=True):
+        super().__init__(height=28, width=28,
+                         num_classes=10, gray_scale=gray_scale)
+        self._data = (x, y)
+
+    @property
+    def size(self):
+        _, y = self._data
+        return len(y)
+
+    def to_index(self, label):
+        return int(label)
+
+    def mapping_table(self):
+        return dict((i, str(i)) for i in range(10))
+
+    def mini_batches(self, batch_size):
+        x, y = self._data
+        x = x.reshape(self.batch_shape(len(y)))
+        gen = ImageDataGenerator()
+        return gen.flow(x, y, batch_size=batch_size)
+
+
+class DirectoryDataSet(BaseDataSet):
+    def __init__(self, path, height, width, num_classes, gray_scale=True):
+        super().__init__(height=height, width=width,
+                         num_classes=num_classes, gray_scale=gray_scale)
+        self._path = path
+        self._target_size = (height, width)
+        self._gen = ImageDataGenerator()
+
+    @property
+    def size(self):
+        count = 0
+        for label_dir in os.listdir(self._path):
+            label_path = os.path.join(self._path, label_dir)
+            for fname in os.listdir(label_path):
+                file_path = os.path.join(label_path, fname)
+                if os.path.isfile(file_path):
+                    count += 1
+
+        return count
+
+    def mapping_table(self):
+        class_to_index = self._gen.class_indices.items()
+        return dict((index, label) for label, index in class_to_index)
+
+    def mini_batches(self, batch_size):
+        if self._gray_scale:
+            color_mode = "grayscale"
+        else:
+            color_mode = "rgb"
+        return self._gen.flow_from_directory(directory=self._path,
+                                             target_size=self._target_size,
+                                             color_mode=color_mode,
+                                             batch_size=batch_size)
 
 
 class MNISTGenerator:
@@ -86,17 +134,14 @@ class MNISTGenerator:
         self._batch_size = batch_size
 
         if not p_background:
-            self._p_background = 1.0 / (self._mnist.NUM_CLASSES + 1)
+            self._p_background = 1.0 / (self._mnist.total_classes())
         else:
             self._p_background = p_background
 
-    def flow_from_training_data(self):
-        x, y = self._mnist.training_set
-        return self._generate(x, y), self._steps_per_epoch(len(y))
-
-    def flow_from_validation_data(self):
-        x, y = self._mnist.validation_set
-        return self._generate(x, y), self._steps_per_epoch(len(y))
+    def flow(self):
+        m = self._mnist.size
+        batch_generator = self._mnist.mini_batches(self._batch_size)
+        return self._generate(batch_generator), self._steps_per_epoch(m)
 
     def _steps_per_epoch(self, m):
         if m < self._batch_size:
@@ -104,26 +149,17 @@ class MNISTGenerator:
 
         return int(m / self._batch_size)
 
-    def _generate(self, x, y):
-        m = len(y)
+    def _generate(self, batch_generator):
+        for x_batch, y_batch in batch_generator:
+            x_batch, y_batch = self._shift((x_batch, y_batch))
+            x_norm = self._normalize(x_batch)
+            y_1hot = self._mnist.to_one_hot(y_batch)
 
-        while True:
-            x, y = self._sorted(x, y)
+            y_1hot = y_1hot.reshape(
+                (len(y_1hot), 1, 1, self._mnist.total_classes())
+            )
 
-            for i in range(0, m, self._batch_size):
-                index_from = i
-                index_to = i + self._batch_size
-                x_batch = x[index_from:index_to]
-                y_batch = y[index_from:index_to]
-                x_batch, y_batch = self._shift((x_batch, y_batch))
-                x_norm = self._normalize(x_batch)
-                y_1hot = self._mnist.to_one_hot(y_batch)
-
-                y_1hot = y_1hot.reshape(
-                    (len(y_1hot), 1, 1, self._mnist.total_classes())
-                )
-
-                yield x_norm, y_1hot
+            yield x_norm, y_1hot
 
     def _sorted(self, x, y):
         m = len(y)

@@ -79,10 +79,11 @@ class DetectionResult:
 
 
 class HeatMap:
-    def __init__(self, feature_map, map_index, object_size):
+    def __init__(self, feature_map, map_index, object_size, index_to_class):
         self._a = feature_map
         self._object_size = object_size
         self._map_index = map_index
+        self._index_to_class = index_to_class
 
     def detect_boxes(self, p_threshold=0.9):
         object_height, object_width = self._object_size
@@ -104,8 +105,8 @@ class HeatMap:
                     bounding_box = BoundingBox((col, row), object_width,
                                                object_height)
 
-                    res = DetectionResult(bounding_box, score,
-                                          str(self._map_index))
+                    label = self._index_to_class[self._map_index]
+                    res = DetectionResult(bounding_box, score, label)
                     results.append(res)
 
         return results
@@ -120,7 +121,7 @@ class HeatMap:
         return [detection_results[i] for i in indices]
 
 
-def detect_locations(image, model, object_size):
+def detect_locations(image, model, object_size, index_to_class):
     image_height, image_width, _ = image.shape
 
     y_pred = model.predict(image.reshape(1, image_height,
@@ -132,7 +133,7 @@ def detect_locations(image, model, object_size):
 
     for k in range(10):
         a = y_pred[:, :, k]
-        heat_map = HeatMap(feature_map=a, map_index=k, object_size=object_size)
+        heat_map = HeatMap(feature_map=a, map_index=k, object_size=object_size, index_to_class=index_to_class)
 
         results.extend(heat_map.non_max_suppression())
 
