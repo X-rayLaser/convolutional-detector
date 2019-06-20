@@ -3,31 +3,6 @@ from generators import MNISTDataSet, MNISTGenerator, DirectoryDataSet
 from models import model_from_config
 
 
-def get_generators_from_directory(args):
-    params = dict(path=args.training_dir, height=args.image_height,
-                  width=args.image_width, num_classes=args.num_classes,
-                  gray_scale=args.grayscale)
-
-    training_set = DirectoryDataSet(**params)
-
-    training_generator = MNISTGenerator(mnist_dataset=training_set,
-                                        batch_size=args.batch_size)
-
-    train_gen, training_steps = training_generator.flow()
-
-    if args.validation_dir:
-        params['path'] = args.validation_dir
-        validation_set = DirectoryDataSet(**params)
-        validation_generator = MNISTGenerator(mnist_dataset=validation_set,
-                                              batch_size=args.batch_size)
-
-        validation_gen, validation_steps = validation_generator.flow()
-    else:
-        validation_gen, validation_steps = None, None
-
-    return (train_gen, training_steps), (validation_gen, validation_steps), training_set.rank3_shape()
-
-
 def train_on_directory(config_path, training_dir, validation_dir, height, width, num_classes, gray_scale, batch_size, epochs=2):
     params = dict(path=training_dir, height=height,
                   width=width, num_classes=num_classes,

@@ -13,6 +13,7 @@ def get_cmd_arguments():
     parser = argparse.ArgumentParser()
     parser.add_argument('--canvas_width', type=int, default=200)
     parser.add_argument('--canvas_height', type=int, default=200)
+    parser.add_argument('--dataset_path', type=str, default='symbols')
     parser.add_argument('--classifier', type=str, default='MNIST_classifier2.h5')
     return parser.parse_args()
 
@@ -62,7 +63,15 @@ if __name__ == '__main__':
     model = builder.get_complete_model(input_shape=(args.canvas_height,
                                                     args.canvas_width, 1))
 
-    gen = RandomCanvasGenerator(width=args.canvas_width,
+    from generators import MNISTSource, DirectorySource
+
+    if args.dataset_path:
+        source = DirectorySource(path=args.dataset_path, height=input_height,
+                                 width=input_width,
+                                 num_classes=len(index_to_class))
+    else:
+        source = MNISTSource()
+    gen = RandomCanvasGenerator(source, width=args.canvas_width,
                                 height=args.canvas_height)
 
     start_interactive_loop(gen, (input_height, input_width), index_to_class)

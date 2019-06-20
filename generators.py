@@ -224,14 +224,16 @@ class MNISTGenerator:
         return x / 255.0
 
 
-class DigitFactory:
+class CharacterSource:
     def __init__(self):
-        from keras.datasets import mnist
-        (x_train, y_train), (x_test, y_test) = mnist.load_data()
-        self._groups = self._group_examples(x_test, y_test)
+        self._groups = None
+
+    def load_data(self):
+        raise NotImplementedError
 
     def array_to_image(self, a):
         h, w = a.shape
+        a = np.array(a, dtype=np.uint8)
         return Image.frombytes('L', (w, h), a.tobytes())
 
     def _group_examples(self, x, y):
@@ -258,12 +260,49 @@ class DigitFactory:
         return self.array_to_image(x)
 
 
+class MNISTSource(CharacterSource):
+    def load_data(self):
+        from keras.datasets import mnist
+        (x_train, y_train), (x_test, y_test) = mnist.load_data()
+        self._groups = self._group_examples(x_test, y_test)
+
+    @property
+    def num_classes(self):
+        return 10
+
+
+class DirectorySource(CharacterSource):
+    def __init__(self, path, height, width, num_classes):
+        super().__init__()
+        self._path = path
+        self._height = height
+        self._width = width
+        self._num_classes = num_classes
+
+    @property
+    def num_classes(self):
+        return self._num_classes
+
+    def load_data(self):
+        data_set = DirectoryDataSet(self._path, height=self._height,
+                                    width=self._width,
+                                    num_classes=self.num_classes)
+        for x_batch, y_batch in data_set.mini_batches(batch_size=data_set.size):
+            x = x_batch.reshape(data_set.size, self._height, self._width)
+            y = y_batch
+            self._groups = self._group_examples(x, y)
+            break
+
+
 class RandomCanvasGenerator:
-    def __init__(self, width=200, height=200, character_size=28):
-        self._factory = DigitFactory()
+    def __init__(self, source, width=200, height=200, character_size=28):
+        self._factory = source
         self._width = width
         self._height = height
         self._char_size = character_size
+
+        self._factory.load_data()
+        self._num_classes = self._factory.num_classes
 
     def generate_image(self, num_digits=30):
         a = np.zeros((self._height, self._width), dtype=np.uint8)
@@ -276,7 +315,7 @@ class RandomCanvasGenerator:
             x = random.randint(0, self._width)
             y = random.randint(0, self._height)
 
-            class_index = random.randint(0, 9)
+            class_index = random.randint(0, self._num_classes - 1)
             ch = str(class_index)
 
             character_bitmap = self._factory.get_digit_image(ch)
