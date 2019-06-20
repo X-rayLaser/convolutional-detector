@@ -24,7 +24,6 @@ if __name__ == '__main__':
     model_config = session_config['model_config']
 
     height, width, channels = model_config['input_shape']
-    num_classes = session_config['num_classes']
     batch_size = session_config['batch_size']
     epochs = session_config['epochs']
     gray_scale = (channels == 1)
@@ -36,7 +35,6 @@ if __name__ == '__main__':
                                             validation_dir=args.validation_dir,
                                             height=height,
                                             width=width,
-                                            num_classes=num_classes,
                                             gray_scale=gray_scale,
                                             batch_size=batch_size,
                                             epochs=epochs)

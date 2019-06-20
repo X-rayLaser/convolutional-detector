@@ -3,10 +3,9 @@ from generators import MNISTDataSet, MNISTGenerator, DirectoryDataSet
 from models import model_from_config
 
 
-def train_on_directory(config_path, training_dir, validation_dir, height, width, num_classes, gray_scale, batch_size, epochs=2):
+def train_on_directory(config_path, training_dir, validation_dir, height, width, gray_scale, batch_size, epochs=2):
     params = dict(path=training_dir, height=height,
-                  width=width, num_classes=num_classes,
-                  gray_scale=gray_scale)
+                  width=width, gray_scale=gray_scale)
 
     training_set = DirectoryDataSet(**params)
 

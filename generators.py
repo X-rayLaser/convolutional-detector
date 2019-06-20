@@ -1,7 +1,5 @@
-from random import shuffle
 import os
 import numpy as np
-from keras.datasets import mnist
 from keras.preprocessing.image import ImageDataGenerator
 from keras.utils import to_categorical
 from PIL.ImageDraw import ImageDraw
@@ -9,14 +7,17 @@ from PIL import Image
 
 
 class BaseDataSet:
-    def __init__(self, height, width, num_classes, gray_scale=True):
-        self._num_classes = num_classes
+    def __init__(self, height, width, gray_scale=True):
         self._height = height
         self._width = width
         self._gray_scale = gray_scale
 
     def total_classes(self):
-        return self._num_classes + 1
+        return self.num_classes + 1
+
+    @property
+    def num_classes(self):
+        raise NotImplementedError
 
     @property
     def input_shape(self):
@@ -39,7 +40,7 @@ class BaseDataSet:
         raise NotImplementedError
 
     def background_class(self):
-        return self._num_classes
+        return self.num_classes
 
     def to_one_hot(self, y):
         return to_categorical(y, num_classes=self.total_classes())
@@ -60,7 +61,7 @@ class BaseDataSet:
         raise NotImplementedError
 
     def is_background(self, class_index):
-        return class_index == self._num_classes
+        return class_index == self.num_classes
 
     def mini_batches(self, batch_size):
         raise NotImplementedError
@@ -68,9 +69,12 @@ class BaseDataSet:
 
 class MNISTDataSet(BaseDataSet):
     def __init__(self, x, y, gray_scale=True):
-        super().__init__(height=28, width=28,
-                         num_classes=10, gray_scale=gray_scale)
+        super().__init__(height=28, width=28, gray_scale=gray_scale)
         self._data = (x, y)
+
+    @property
+    def num_classes(self):
+        return 10
 
     @property
     def size(self):
@@ -91,13 +95,16 @@ class MNISTDataSet(BaseDataSet):
 
 
 class DirectoryDataSet(BaseDataSet):
-    def __init__(self, path, height, width, num_classes, gray_scale=True):
-        super().__init__(height=height, width=width,
-                         num_classes=num_classes, gray_scale=gray_scale)
+    def __init__(self, path, height, width, gray_scale=True):
+        super().__init__(height=height, width=width, gray_scale=gray_scale)
         self._path = path
         self._target_size = (height, width)
         self._gen = ImageDataGenerator()
         self._class_to_index = None
+
+    @property
+    def num_classes(self):
+        return len(os.listdir(self._path))
 
     @property
     def size(self):
@@ -168,22 +175,6 @@ class MNISTGenerator:
             )
 
             yield x_norm, y_1hot
-
-    def _sorted(self, x, y):
-        m = len(y)
-
-        indices = list(range(m))
-        shuffle(indices)
-
-        x_out = []
-        y_out = []
-        for index in indices:
-            x_out.append(x[index])
-            y_out.append(y[index])
-
-        x_out = np.array(x_out)
-        y_out = np.array(y_out)
-        return x_out, y_out
 
     def _shift(self, batch):
         x, y = batch
@@ -263,7 +254,7 @@ class CharacterSource:
 class MNISTSource(CharacterSource):
     def load_data(self):
         from keras.datasets import mnist
-        (x_train, y_train), (x_test, y_test) = mnist.load_data()
+        _, (x_test, y_test) = mnist.load_data()
         self._groups = self._group_examples(x_test, y_test)
 
     @property
@@ -272,22 +263,21 @@ class MNISTSource(CharacterSource):
 
 
 class DirectorySource(CharacterSource):
-    def __init__(self, path, height, width, num_classes):
+    def __init__(self, path, height, width):
         super().__init__()
         self._path = path
         self._height = height
         self._width = width
-        self._num_classes = num_classes
+        self._data_set = DirectoryDataSet(self._path, height=self._height,
+                                          width=self._width)
 
     @property
     def num_classes(self):
-        return self._num_classes
+        return self._data_set.num_classes
 
     def load_data(self):
-        data_set = DirectoryDataSet(self._path, height=self._height,
-                                    width=self._width,
-                                    num_classes=self.num_classes)
-        for x_batch, y_batch in data_set.mini_batches(batch_size=data_set.size):
+        data_set = self._data_set
+        for x_batch, y_batch in data_set.mini_batches(data_set.size):
             x = x_batch.reshape(data_set.size, self._height, self._width)
             y = y_batch
             self._groups = self._group_examples(x, y)

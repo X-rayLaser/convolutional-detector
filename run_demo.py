@@ -67,8 +67,7 @@ if __name__ == '__main__':
 
     if args.dataset_path:
         source = DirectorySource(path=args.dataset_path, height=input_height,
-                                 width=input_width,
-                                 num_classes=len(index_to_class))
+                                 width=input_width)
     else:
         source = MNISTSource()
     gen = RandomCanvasGenerator(source, width=args.canvas_width,

@@ -1,4 +1,6 @@
 from shapely.geometry import box
+from PIL import Image
+import numpy as np
 
 
 class BoundingBox:
@@ -116,6 +118,20 @@ class HeatMap:
         indices = non_max_suppression(detection_results, iou_threshold=0.2)
         return [detection_results[i] for i in indices]
 
+    def visualize(self):
+        a = np.array(np.round(self._a * 255), dtype=np.uint8)
+        image = Image.frombytes('L', self._object_size, a.tobytes())
+        image.show()
+
+
+def visualize_prediction_maps(y_pred, num_classes, object_size):
+    for k in range(num_classes):
+        a = y_pred[:, :, k]
+        print(a)
+        a = np.array(np.round(a * 255), dtype=np.uint8)
+        image = Image.frombytes('L', object_size, a.tobytes())
+        image.show()
+
 
 def detect_locations(image, model, object_size, index_to_class):
     image_height, image_width, _ = image.shape
@@ -123,16 +139,18 @@ def detect_locations(image, model, object_size, index_to_class):
     y_pred = model.predict(image.reshape(1, image_height,
                                          image_width, 1) / 255.0)[0]
 
+    num_classes = len(index_to_class)
+
+    #visualize_prediction_maps(y_pred, num_classes, object_size)
+
     y_pred = thresholding(y_pred)
 
     results = []
 
-    num_classes = len(index_to_class)
-
     for k in range(num_classes):
         a = y_pred[:, :, k]
         heat_map = HeatMap(feature_map=a, map_index=k, object_size=object_size, index_to_class=index_to_class)
-
+        heat_map.visualize()
         results.extend(heat_map.non_max_suppression())
 
     indices = non_max_suppression(results, iou_threshold=0.2)
