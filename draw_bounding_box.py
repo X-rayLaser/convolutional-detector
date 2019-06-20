@@ -30,7 +30,7 @@ def visualize_detection(a, boxes, labels):
         y = clip(y0 + h, image.height - 1)
 
         xy = [(x0, y0), (x, y)]
-        canvas.rectangle(xy, width=2, outline=128)
-        canvas.text((x0 + 2, y0 + 2), font=fnt, text=label, fill=255)
+        canvas.rectangle(xy, width=1, outline=128)
+        canvas.text((x0, y0), font=fnt, text=label, fill=255)
 
     image.show()

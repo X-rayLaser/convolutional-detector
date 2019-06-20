@@ -120,17 +120,17 @@ class HeatMap:
 
     def visualize(self):
         a = np.array(np.round(self._a * 255), dtype=np.uint8)
-        image = Image.frombytes('L', self._object_size, a.tobytes())
-        image.show()
+        image = Image.frombytes('L', a.shape, a.tobytes())
+        image.show(title=str(self._map_index))
 
 
 def visualize_prediction_maps(y_pred, num_classes, object_size):
     for k in range(num_classes):
         a = y_pred[:, :, k]
-        print(a)
-        a = np.array(np.round(a * 255), dtype=np.uint8)
-        image = Image.frombytes('L', object_size, a.tobytes())
-        image.show()
+        print(a.shape)
+        a = np.array(np.round(a * 255), dtype=np.uint8).reshape(a.shape)
+        image = Image.frombytes('L', a.shape, a.tobytes())
+        image.show(title=str(k))
 
 
 def detect_locations(image, model, object_size, index_to_class):
@@ -141,8 +141,6 @@ def detect_locations(image, model, object_size, index_to_class):
 
     num_classes = len(index_to_class)
 
-    #visualize_prediction_maps(y_pred, num_classes, object_size)
-
     y_pred = thresholding(y_pred)
 
     results = []
@@ -150,7 +148,7 @@ def detect_locations(image, model, object_size, index_to_class):
     for k in range(num_classes):
         a = y_pred[:, :, k]
         heat_map = HeatMap(feature_map=a, map_index=k, object_size=object_size, index_to_class=index_to_class)
-        heat_map.visualize()
+        #heat_map.visualize()
         results.extend(heat_map.non_max_suppression())
 
     indices = non_max_suppression(results, iou_threshold=0.2)

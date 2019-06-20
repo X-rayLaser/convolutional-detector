@@ -13,7 +13,7 @@ def get_cmd_arguments():
     parser = argparse.ArgumentParser()
     parser.add_argument('--canvas_width', type=int, default=200)
     parser.add_argument('--canvas_height', type=int, default=200)
-    parser.add_argument('--dataset_path', type=str, default='symbols')
+    parser.add_argument('--dataset_path', type=str, default='')
     parser.add_argument('--classifier', type=str, default='MNIST_classifier2.h5')
     return parser.parse_args()
 
