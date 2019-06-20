@@ -1,8 +1,6 @@
 import argparse
 import os
 import json
-from generators import MNISTDataSet, MNISTGenerator, DirectoryDataSet
-from models import build_model, model_from_config
 from trainers import train_on_mnist
 
 
@@ -11,12 +9,6 @@ def get_cmd_arguments():
     parser.add_argument('--training_dir', type=str, default='')
     parser.add_argument('--validation_dir', type=str, default='')
     parser.add_argument('--save_path', type=str, default='MNIST_classifier2.h5')
-    parser.add_argument('--image_width', type=int, default=28)
-    parser.add_argument('--image_height', type=int, default=28)
-    parser.add_argument('--num_classes', type=int, default=10)
-    parser.add_argument('--grayscale', type=bool, default=True)
-    parser.add_argument('--batch_size', type=int, default=128)
-    parser.add_argument('--epochs', type=int, default=1)
     parser.add_argument('--model_config', type=str, default='model_config.json')
 
     return parser.parse_args()
@@ -25,31 +17,41 @@ def get_cmd_arguments():
 if __name__ == '__main__':
     args = get_cmd_arguments()
 
+    with open(args.model_config) as f:
+        s = f.read()
+
+    session_config = json.loads(s)
+    model_config = session_config['model_config']
+
+    height, width, channels = model_config['input_shape']
+    num_classes = session_config['num_classes']
+    batch_size = session_config['batch_size']
+    epochs = session_config['epochs']
+    gray_scale = (channels == 1)
+
     if args.training_dir:
         from trainers import train_on_directory
         model, mapping = train_on_directory(config_path=args.model_config,
                                             training_dir=args.training_dir,
                                             validation_dir=args.validation_dir,
-                                            height=args.image_height,
-                                            width=args.image_width,
-                                            num_classes=args.num_classes,
-                                            gray_scale=args.grayscale,
-                                            batch_size=args.batch_size)
+                                            height=height,
+                                            width=width,
+                                            num_classes=num_classes,
+                                            gray_scale=gray_scale,
+                                            batch_size=batch_size,
+                                            epochs=epochs)
     else:
         model, mapping = train_on_mnist(config_path=args.model_config,
-                                        batch_size=args.batch_size,
-                                        epochs=args.epochs)
+                                        batch_size=batch_size,
+                                        epochs=epochs)
 
     base_path, _ = os.path.splitext(args.save_path)
     meta_path = base_path + '.meta.json'
 
-    with open(args.model_config, 'r') as f:
-        s = f.read()
-
     model_meta = {
         'model_path': args.save_path,
         'index_to_class': mapping,
-        'model_config': json.loads(s)
+        'training_config': session_config
     }
 
     model.save(args.save_path)

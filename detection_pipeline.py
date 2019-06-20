@@ -1,8 +1,4 @@
 from shapely.geometry import box
-from keras.preprocessing.image import img_to_array
-from models import build_model
-from generators import RandomCanvasGenerator
-from draw_bounding_box import visualize_detection
 
 
 class BoundingBox:
@@ -131,7 +127,9 @@ def detect_locations(image, model, object_size, index_to_class):
 
     results = []
 
-    for k in range(10):
+    num_classes = len(index_to_class)
+
+    for k in range(num_classes):
         a = y_pred[:, :, k]
         heat_map = HeatMap(feature_map=a, map_index=k, object_size=object_size, index_to_class=index_to_class)
 

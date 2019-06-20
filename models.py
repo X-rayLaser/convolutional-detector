@@ -128,12 +128,18 @@ def model_from_config(path):
 
     d = json.loads(s)
 
-    input_shape = d['input_shape']
-    initial_num_filters = d['initial_num_filters']
-    kernel_size = d['kernel_size']
-    convolutional_layers = d['convolutional_layers']
-    drop_prob = d['drop_prob']
-    num_classes = d['num_classes']
+    return model_from_dict(d)
+
+
+def model_from_dict(config_dictionary):
+    model_config = config_dictionary['model_config']
+    input_shape = model_config['input_shape']
+    initial_num_filters = model_config['initial_num_filters']
+    kernel_size = model_config['kernel_size']
+    convolutional_layers = model_config['convolutional_layers']
+    drop_prob = model_config['drop_prob']
+
+    num_classes = config_dictionary['num_classes']
 
     num_background_classes = 1
 

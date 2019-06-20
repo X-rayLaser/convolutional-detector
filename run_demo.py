@@ -1,21 +1,19 @@
 import argparse
+import traceback
 import os
 import json
 from keras.preprocessing.image import img_to_array
 from detection_pipeline import detect_locations
 from draw_bounding_box import visualize_detection
-from models import build_model
 from generators import RandomCanvasGenerator
+from models import model_from_dict
 
 
 def get_cmd_arguments():
     parser = argparse.ArgumentParser()
     parser.add_argument('--canvas_width', type=int, default=200)
     parser.add_argument('--canvas_height', type=int, default=200)
-    parser.add_argument('--input_width', type=int, default=28)
-    parser.add_argument('--input_height', type=int, default=28)
-    parser.add_argument('--classifier', type=str, default='MNIST_classifier.h5')
-    parser.add_argument('--num_classes', type=int, default=10)
+    parser.add_argument('--classifier', type=str, default='MNIST_classifier2.h5')
     return parser.parse_args()
 
 
@@ -32,6 +30,7 @@ def start_interactive_loop(canvas_generator, object_size, index_to_class):
 
             visualize_detection(img_to_array(image), bounding_boxes, labels)
         except Exception:
+            traceback.print_exc()
             print('Number of digits must be an integer')
 
 
@@ -53,10 +52,11 @@ if __name__ == '__main__':
     index_to_class = meta_data['index_to_class']
     index_to_class = dict((int(k), v) for k, v in index_to_class.items())
 
-    total_num_classes = args.num_classes + 1
+    input_shape = meta_data['training_config']['model_config']['input_shape']
+    input_height, input_width, _ = input_shape
 
-    builder = build_model(input_shape=(args.input_height, args.input_width, 1),
-                          num_classes=total_num_classes)
+    builder = model_from_dict(meta_data['training_config'])
+
     builder.load_weights(args.classifier)
 
     model = builder.get_complete_model(input_shape=(args.canvas_height,
@@ -65,4 +65,4 @@ if __name__ == '__main__':
     gen = RandomCanvasGenerator(width=args.canvas_width,
                                 height=args.canvas_height)
 
-    start_interactive_loop(gen, (args.input_height, args.input_width), index_to_class)
+    start_interactive_loop(gen, (input_height, input_width), index_to_class)

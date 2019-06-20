@@ -97,6 +97,7 @@ class DirectoryDataSet(BaseDataSet):
         self._path = path
         self._target_size = (height, width)
         self._gen = ImageDataGenerator()
+        self._class_to_index = None
 
     @property
     def size(self):
@@ -111,7 +112,7 @@ class DirectoryDataSet(BaseDataSet):
         return count
 
     def mapping_table(self):
-        class_to_index = self._gen.class_indices.items()
+        class_to_index = self._class_to_index
         return dict((index, label) for label, index in class_to_index)
 
     def mini_batches(self, batch_size):
@@ -119,10 +120,17 @@ class DirectoryDataSet(BaseDataSet):
             color_mode = "grayscale"
         else:
             color_mode = "rgb"
-        return self._gen.flow_from_directory(directory=self._path,
-                                             target_size=self._target_size,
-                                             color_mode=color_mode,
-                                             batch_size=batch_size)
+        gen = self._gen.flow_from_directory(directory=self._path,
+                                            target_size=self._target_size,
+                                            color_mode=color_mode,
+                                            class_mode='sparse',
+                                            batch_size=batch_size)
+
+        self._class_to_index = gen.class_indices.items()
+
+        for x_batch, y_batch in gen:
+            x_batch = 255 - x_batch
+            yield x_batch, y_batch
 
 
 class MNISTGenerator:
