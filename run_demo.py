@@ -4,7 +4,7 @@ import os
 import json
 from keras.preprocessing.image import img_to_array
 from detection_pipeline import detect_locations
-from draw_bounding_box import visualize_detection
+from visualization import visualize_detection
 from generators import RandomCanvasGenerator
 from models import model_from_dict
 

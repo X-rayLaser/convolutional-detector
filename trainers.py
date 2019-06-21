@@ -10,8 +10,8 @@ def train_on_directory(config_path, training_dir, validation_dir, height,
 
     training_set = DirectoryDataSet(**params)
 
-    training_generator = MNISTGenerator(mnist_dataset=training_set,
-                                        batch_size=batch_size)
+    training_generator = DataSetGenerator(mnist_dataset=training_set,
+                                          batch_size=batch_size)
 
     train_gen, training_steps = training_generator.flow()
 
