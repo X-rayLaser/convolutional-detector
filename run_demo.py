@@ -18,7 +18,7 @@ def get_cmd_arguments():
     return parser.parse_args()
 
 
-def start_interactive_loop(canvas_generator, object_size, index_to_class):
+def start_interactive_loop(canvas_generator, object_size, index_to_class, model):
     while True:
         try:
             num_digits = int(input('Enter a number of digits:\n'))
@@ -73,4 +73,4 @@ if __name__ == '__main__':
     gen = RandomCanvasGenerator(source, width=args.canvas_width,
                                 height=args.canvas_height)
 
-    start_interactive_loop(gen, (input_height, input_width), index_to_class)
+    start_interactive_loop(gen, (input_height, input_width), index_to_class, model)

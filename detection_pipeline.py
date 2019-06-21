@@ -137,7 +137,7 @@ def visualize_prediction_maps(y_pred, num_classes):
 
 
 def detect_locations(image, model, object_size, index_to_class,
-                     p_threshold=0.9, iou_threshold=0.2):
+                     p_threshold=0.8, iou_threshold=0.2):
     image_height, image_width, _ = image.shape
 
     y_pred = model.predict(image.reshape(1, image_height,

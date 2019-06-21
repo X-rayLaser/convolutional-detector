@@ -140,9 +140,9 @@ class DirectoryDataSet(BaseDataSet):
             yield x_batch, y_batch
 
 
-class MNISTGenerator:
+class DataSetGenerator:
 
-    SHIFT_TOLERANCE = 3
+    SHIFT_TOLERANCE = 0
 
     def __init__(self, mnist_dataset, batch_size, p_background=None):
         self._mnist = mnist_dataset
@@ -184,10 +184,11 @@ class MNISTGenerator:
 
         x = self._to_rank4(x)
         for i in range(len(y)):
+            image_width = self._mnist.input_shape[0]
 
             if np.random.random() < self._p_background:
-                image_width = self._mnist.input_shape[0]
-                x_shifted = self._transform_example(x[i:i+1], max_shift=image_width)
+                x_shifted = self._transform_example(x[i:i+1],
+                                                    max_shift=image_width)
                 y_out[i] = self._mnist.background_class()
             else:
                 x_shifted = self._transform_example(
@@ -195,11 +196,24 @@ class MNISTGenerator:
                 )
                 y_out[i] = y[i]
 
+            if np.random.random() < 0.5:
+                for _ in range(2):
+                    x_shifted = self._add_noise(x_shifted, x)
+
             x_out[i] = x_shifted
 
         x_out = self._to_rank4(x_out)
         y_out = np.array(y_out)
         return x_out, y_out
+
+    def _add_noise(self, x_shifted, x_batch):
+        index = np.random.randint(0, len(x_batch) - 1)
+        image_width = self._mnist.input_shape[0]
+
+        noise = self._transform_example(x_batch[index:index + 1],
+                                        max_shift=image_width)
+
+        return np.minimum(255, x_shifted + noise)
 
     def _transform_example(self, x, max_shift):
         gen = ImageDataGenerator(width_shift_range=max_shift,
@@ -294,16 +308,20 @@ class RandomCanvasGenerator:
         self._factory.load_data()
         self._num_classes = self._factory.num_classes
 
-    def generate_image(self, num_digits=30):
-        a = np.zeros((self._height, self._width), dtype=np.uint8)
+    def generate_image(self, num_digits=30, noise=None):
+        if noise:
+            a = np.array(np.random.random_integers(0, 64, (self._height, self._width)), dtype=np.uint8)
+        else:
+            a = np.zeros((self._height, self._width), dtype=np.uint8)
+
         im = Image.frombytes('L', (self._width, self._height), a.tobytes())
         canvas = ImageDraw(im)
 
         for i in range(num_digits):
             import random
 
-            x = random.randint(0, self._width)
-            y = random.randint(0, self._height)
+            x = random.randint(0, self._width - self._char_size)
+            y = random.randint(0, self._height - self._char_size)
 
             class_index = random.randint(0, self._num_classes - 1)
             ch = str(class_index)

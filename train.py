@@ -8,8 +8,8 @@ def get_cmd_arguments():
     parser = argparse.ArgumentParser()
     parser.add_argument('--training_dir', type=str, default='')
     parser.add_argument('--validation_dir', type=str, default='')
-    parser.add_argument('--save_path', type=str, default='MNIST_classifier2.h5')
-    parser.add_argument('--model_config', type=str, default='model_config.json')
+    parser.add_argument('--save_path', type=str, default='MNIST_classifier.h5')
+    parser.add_argument('--config', type=str, default='training_config.json')
 
     return parser.parse_args()
 
@@ -17,7 +17,7 @@ def get_cmd_arguments():
 if __name__ == '__main__':
     args = get_cmd_arguments()
 
-    with open(args.model_config) as f:
+    with open(args.config) as f:
         s = f.read()
 
     session_config = json.loads(s)
@@ -39,7 +39,7 @@ if __name__ == '__main__':
                                             batch_size=batch_size,
                                             epochs=epochs)
     else:
-        model, mapping = train_on_mnist(config_path=args.model_config,
+        model, mapping = train_on_mnist(config_path=args.config,
                                         batch_size=batch_size,
                                         epochs=epochs)
 

@@ -1,9 +1,10 @@
 from keras.datasets import mnist
-from generators import MNISTDataSet, MNISTGenerator, DirectoryDataSet
+from generators import MNISTDataSet, DataSetGenerator, DirectoryDataSet
 from models import model_from_config
 
 
-def train_on_directory(config_path, training_dir, validation_dir, height, width, gray_scale, batch_size, epochs=2):
+def train_on_directory(config_path, training_dir, validation_dir, height,
+                       width, gray_scale, batch_size, epochs=2):
     params = dict(path=training_dir, height=height,
                   width=width, gray_scale=gray_scale)
 
@@ -17,8 +18,8 @@ def train_on_directory(config_path, training_dir, validation_dir, height, width,
     if validation_dir:
         params['path'] = validation_dir
         validation_set = DirectoryDataSet(**params)
-        validation_generator = MNISTGenerator(mnist_dataset=validation_set,
-                                              batch_size=batch_size)
+        validation_generator = DataSetGenerator(mnist_dataset=validation_set,
+                                                batch_size=batch_size)
 
         validation_gen, validation_steps = validation_generator.flow()
     else:
@@ -46,11 +47,11 @@ def train_on_mnist(config_path, batch_size=32, epochs=2):
     (x_train, y_train), (x_val, y_val) = mnist.load_data()
 
     training_dataset = MNISTDataSet(x_train, y_train)
-    gen = MNISTGenerator(mnist_dataset=training_dataset, batch_size=batch_size)
+    gen = DataSetGenerator(training_dataset, batch_size=batch_size)
     train_gen, training_steps = gen.flow()
 
     validation_dataset = MNISTDataSet(x_val, y_val)
-    gen = MNISTGenerator(mnist_dataset=validation_dataset, batch_size=batch_size)
+    gen = DataSetGenerator(validation_dataset, batch_size=batch_size)
     validation_gen, validation_steps = gen.flow()
 
     builder = model_from_config(config_path)

@@ -11,36 +11,45 @@ pip install -r requirements.txt
 
 ## Working via CLI
 
-Import a labeled data set of images
-```
+Train the classifier on MNIST data set using configuration file
+'training_config.json' and save the model in 'MNIST_classifier.h5'
 
 ```
-
-Generate a object detection data set derived from previously imported one
+python train.py --save_path 'MNIST_classifier.h5' --config 'training_config.json'
 ```
 
-```
-
-Train the classifier
+Train the classifier using a directory of images
 
 ```
-
-```
-
-Test model and report its performance on metrics such as classification accuracy and mean IoU
-```
+python train.py --training_dir 'path/to/training_images' --validation_dir 'path/to/validation_images'
 ```
 
 Test model interactively, by showing image and detection results one at at time
 ```
-
+python run_demo.py --canvas_width 200 --canvas_height 300 --classifier 'MNIST_classifier.h5' 
 ```
 
-## Using library in Python project
-
-Run detection pipeline and output resulting JSON string
+Run demo using different image generator where image of each character is
+drawn from a directory (see below the format of the directory)
+```
+python run_demo.py --dataset_path '<path/to/images_directory' 
 ```
 
-```
+## Usage in Python project
 
-    
+```
+from detection_pipeline import detect_locations
+from keras.preprocessing.image import img_to_array
+...
+a = img_to_array(image)
+index_to_class = {0: '0', '1', '2', '3', '4', '5', '6', '7', '8', '9'}
+object_size = (28, 28)
+bounding_boxes, labels = detect_locations(
+    a, model, object_size=object_size,
+    index_to_class=index_to_class
+)
+box = bounding_boxes[0]
+label = labels[0]
+x0, y0, w, h = box.geometry
+...
+```
