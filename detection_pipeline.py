@@ -77,18 +77,21 @@ class DetectionResult:
 
 
 class HeatMap:
-    def __init__(self, feature_map, map_index, object_size, index_to_class):
+    def __init__(self, feature_map, map_index, object_size, index_to_class, p_threshold=0.9, iou_threshold=0.2):
         self._a = feature_map
         self._object_size = object_size
         self._map_index = map_index
         self._index_to_class = index_to_class
 
-    def detect_boxes(self, p_threshold=0.9):
+        self._p_threshold = p_threshold
+        self._iou_threshold = iou_threshold
+
+    def detect_boxes(self):
         object_height, object_width = self._object_size
 
         prediction_grid = self._a
 
-        mask = prediction_grid > p_threshold
+        mask = prediction_grid > self._p_threshold
 
         prediction_grid = prediction_grid * mask
 
@@ -99,7 +102,7 @@ class HeatMap:
             for col in range(cols):
                 score = prediction_grid[row, col]
 
-                if score > p_threshold:
+                if score > self._p_threshold:
                     bounding_box = BoundingBox((col, row), object_width,
                                                object_height)
 
@@ -115,7 +118,7 @@ class HeatMap:
     def non_max_suppression(self):
         detection_results = self.get_bounding_boxes()
 
-        indices = non_max_suppression(detection_results, iou_threshold=0.2)
+        indices = non_max_suppression(detection_results, iou_threshold=self._iou_threshold)
         return [detection_results[i] for i in indices]
 
     def visualize(self):
@@ -124,7 +127,7 @@ class HeatMap:
         image.show(title=str(self._map_index))
 
 
-def visualize_prediction_maps(y_pred, num_classes, object_size):
+def visualize_prediction_maps(y_pred, num_classes):
     for k in range(num_classes):
         a = y_pred[:, :, k]
         print(a.shape)
@@ -133,7 +136,8 @@ def visualize_prediction_maps(y_pred, num_classes, object_size):
         image.show(title=str(k))
 
 
-def detect_locations(image, model, object_size, index_to_class):
+def detect_locations(image, model, object_size, index_to_class,
+                     p_threshold=0.9, iou_threshold=0.2):
     image_height, image_width, _ = image.shape
 
     y_pred = model.predict(image.reshape(1, image_height,
@@ -141,17 +145,19 @@ def detect_locations(image, model, object_size, index_to_class):
 
     num_classes = len(index_to_class)
 
-    y_pred = thresholding(y_pred)
+    y_pred = thresholding(y_pred, p_threshold=p_threshold)
 
     results = []
 
     for k in range(num_classes):
         a = y_pred[:, :, k]
-        heat_map = HeatMap(feature_map=a, map_index=k, object_size=object_size, index_to_class=index_to_class)
-        #heat_map.visualize()
+        heat_map = HeatMap(feature_map=a, map_index=k, object_size=object_size,
+                           index_to_class=index_to_class,
+                           p_threshold=p_threshold,
+                           iou_threshold=iou_threshold)
         results.extend(heat_map.non_max_suppression())
 
-    indices = non_max_suppression(results, iou_threshold=0.2)
+    indices = non_max_suppression(results, iou_threshold=iou_threshold)
 
     cleaned_boxes = [results[i].bounding_box for i in indices]
     cleaned_labels = [results[i].predicted_class for i in indices]
